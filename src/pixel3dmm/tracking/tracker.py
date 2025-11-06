@@ -126,6 +126,17 @@ COMPILE = True
 if COMPILE:
     project_points_screen_space = torch.compile(project_points_screen_space)
 
+def try_execute(fn, start_value: int, retries: int = 10):
+    value = start_value
+    for i in range(retries):
+        try:
+            return fn(value)
+        except FileNotFoundError as e:
+            # + 1 - 2 + 3 - 4
+            sign = 1 if i % 2 == 0 else -1
+            value = value + sign * (i + 1)
+    raise e
+
 
 class Tracker(object):
     def __init__(self, config,
@@ -1514,12 +1525,7 @@ class Tracker(object):
         else:
             mica_shape = np.mean(mica_shapes, axis=0)
 
-        timestep_candidate = timestep
-        for j in range(10):
-            try:
-                seg = np.array(Image.open(f'{DATA_FOLDER}/seg_og/{timestep_candidate:05d}.png').resize((self.config.size, self.config.size), Image.NEAREST))
-            except FileNotFoundError as e:
-                timestep_candidate -= 1
+        seg = try_execute(lambda t: np.array(Image.open(f'{DATA_FOLDER}/seg_og/{t:05d}.png').resize((self.config.size, self.config.size), Image.NEAREST)), timestep)
 
         if len(seg.shape) == 3:
             seg = seg[..., 0]
@@ -1542,26 +1548,20 @@ class Tracker(object):
         valid_bg = seg <= 1
 
         try:
-            timestp_candidate = timestep
-            for j in range(10):
-                try:
-                    normals = ((np.array(Image.open(f'{P3DMM_FOLDER}/normals/{timestep_candidate:05d}.png').resize((self.config.size, self.config.size))) / 255).astype(
-                        np.float32) - 0.5) * 2
-                except FileNotFoundError as e:
-                    timestep_candidate -= 1
-
-            timestp_candidate = timestep
-            for j in range(10):
-                try:
-                    uv_map = (np.array(Image.open(f'{P3DMM_FOLDER}/uv_map/{timestep_candidate:05d}png').resize((self.config.size, self.config.size))) / 255).astype(np.float32)
-                except FileNotFoundError as e:
-                    timestep_candidate -= 1
-
+            normals = try_execute(lambda t: ((np.array(Image.open(f'{P3DMM_FOLDER}/normals/{t:05d}.png').resize((self.config.size, self.config.size))) / 255).astype(np.float32) - 0.5) * 2,
+                              timestep)
+            uv_map = try_execute(lambda t: (np.array(Image.open(f'{P3DMM_FOLDER}/uv_map/{t:05d}png').resize((self.config.size, self.config.size))) / 255).astype(np.float32),
+                                  timestep)
 
         except Exception as ex:
-            normals = ((np.array(Image.open(f'{P3DMM_FOLDER}/normals/{timestep:05d}.png').resize((self.config.size, self.config.size))) / 255).astype(
-                np.float32) - 0.5) * 2
-            uv_map = (np.array(Image.open(f'{P3DMM_FOLDER}/uv_map/{timestep:05d}.png').resize((self.config.size, self.config.size))) / 255).astype(np.float32)
+            normals = try_execute(lambda t: ((np.array(Image.open(f'{P3DMM_FOLDER}/normals/{t:05d}.png').resize((self.config.size, self.config.size))) / 255).astype(
+                np.float32) - 0.5) * 2,
+                                  timestep)
+
+            uv_map = try_execute(
+                lambda t: (np.array(
+                        Image.open(f'{P3DMM_FOLDER}/uv_map/{t:05d}.png').resize((self.config.size, self.config.size))) / 255).astype(np.float32),
+                timestep)
 
         try:
             lms = np.load(f'{DATA_FOLDER}/PIPnet_landmarks/{timestep:05d}.npy') * self.config.size
