@@ -199,7 +199,7 @@ class Tracker(object):
         self.checkpoint_folder = os.path.join(self.save_folder, self.actor_name, "checkpoint")
         self.mesh_folder = os.path.join(self.save_folder, self.actor_name, "mesh")
         self.create_output_folders()
-        self.writer = SummaryWriter(log_dir=self.save_folder + self.actor_name + '/logs')
+        # self.writer = SummaryWriter(log_dir=self.save_folder + self.actor_name + '/logs')
 
         self.cam_pose_nvd = {}
         self.R_base = {}
@@ -1514,7 +1514,13 @@ class Tracker(object):
         else:
             mica_shape = np.mean(mica_shapes, axis=0)
 
-        seg = np.array(Image.open(f'{DATA_FOLDER}/seg_og/{timestep:05d}.png').resize((self.config.size, self.config.size), Image.NEAREST))
+        timestep_candidate = timestep
+        for j in range(10):
+            try:
+                seg = np.array(Image.open(f'{DATA_FOLDER}/seg_og/{timestep_candidate:05d}.png').resize((self.config.size, self.config.size), Image.NEAREST))
+            except FileNotFoundError as e:
+                timestep_candidate -= 1
+
         if len(seg.shape) == 3:
             seg = seg[..., 0]
         uv_mask = ((seg == 2) | (seg == 6) | (seg == 7) |
