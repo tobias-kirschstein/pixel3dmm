@@ -1542,8 +1542,22 @@ class Tracker(object):
         valid_bg = seg <= 1
 
         try:
-            normals = ((np.array(Image.open(f'{P3DMM_FOLDER}/normals/{timestep:05d}.png').resize((self.config.size, self.config.size))) / 255).astype(np.float32) - 0.5 )*2
-            uv_map = (np.array(Image.open(f'{P3DMM_FOLDER}/uv_map/{timestep:05d}png').resize((self.config.size, self.config.size))) / 255).astype(np.float32)
+            timestp_candidate = timestep
+            for j in range(10):
+                try:
+                    normals = ((np.array(Image.open(f'{P3DMM_FOLDER}/normals/{timestep_candidate:05d}.png').resize((self.config.size, self.config.size))) / 255).astype(
+                        np.float32) - 0.5) * 2
+                except FileNotFoundError as e:
+                    timestep_candidate -= 1
+
+            timestp_candidate = timestep
+            for j in range(10):
+                try:
+                    uv_map = (np.array(Image.open(f'{P3DMM_FOLDER}/uv_map/{timestep_candidate:05d}png').resize((self.config.size, self.config.size))) / 255).astype(np.float32)
+                except FileNotFoundError as e:
+                    timestep_candidate -= 1
+
+
         except Exception as ex:
             normals = ((np.array(Image.open(f'{P3DMM_FOLDER}/normals/{timestep:05d}.png').resize((self.config.size, self.config.size))) / 255).astype(
                 np.float32) - 0.5) * 2
